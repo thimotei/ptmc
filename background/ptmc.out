@@ -1,0 +1,5 @@
+\BOOKMARK [0][-]{chapter.1}{Background on Parallel Tempering Markov chain Monte Carlo}{}% 1
+\BOOKMARK [1][-]{section.1.1}{Parallel Tempering Markov chain Monte Carlo}{chapter.1}% 2
+\BOOKMARK [2][-]{subsection.1.1.1}{Adaptive covariance matrix for each chain}{section.1.1}% 3
+\BOOKMARK [2][-]{subsection.1.1.2}{Adaptive tempering ladder}{section.1.1}% 4
+\BOOKMARK [1][-]{section.1.2}{Further reading}{chapter.1}% 5
