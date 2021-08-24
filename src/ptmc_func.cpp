@@ -41,15 +41,21 @@ void init_evaluateLogLikelihood(RPTMC* model, Rcpp::Function evaluateLogLikeliho
 
 
 // [[Rcpp::export]]
-Eigen::MatrixXd run_ptmc(Rcpp::List model, Rcpp::List settings)
+List run_ptmc(Rcpp::List model, Rcpp::List settings, bool update_ind, Rcpp::List PTMCpar)
 {
-  RPTMC PTMC;   MatrixXd output;
+  RPTMC PTMC; MatrixXd output;
   init_samplePriorDistributions(&PTMC, model["samplePriorDistributions"]);
   init_evaluateLogPrior(&PTMC, model["evaluateLogPrior"]);
   init_evaluateLogLikelihood(&PTMC, model["evaluateLogLikelihood"]);
 
-  PTMC.initialiseClass(settings);
-  output = PTMC.runPTMCC();
+  if (update_ind) {
+    PTMC.updateClass(settings, PTMCpar);
+  } else {  
+    PTMC.initialiseClass(settings);
+  }
 
-  return output;
+  output = PTMC.runPTMCC();
+  PTMCpar = PTMC.savePTMCpar();
+  return Rcpp::List::create(_["output"] = output, _["PTMCpar"] = PTMCpar);
+
 }

@@ -11,7 +11,6 @@
 #include <vector>
 #include <random>
 
-
 #define EIGEN_DONT_VECTORIZE
 #define EIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT
 
@@ -95,7 +94,7 @@ namespace ptmc{
             this->lowerParBounds = settings["lowerParBounds"];
             this->upperParBounds = settings["upperParBounds"];
 
-            
+            // Counters 
             this->counterFuncEval = VectorXd::Zero(this->numberTempChains);
             this->counterAccepted = VectorXd::Zero(this->numberTempChains);
             this->counterPosterior = VectorXd::Zero(this->numberTempChains);
@@ -105,7 +104,7 @@ namespace ptmc{
             this->counterAcceptTemp = VectorXd::Zero(this->numberTempChains);
             
             this->posteriorSamplesLength = (this->iterations-this->burninPosterior)/(this->thin);
-            this->posteriorOut = MatrixXd::Zero(this->numberTempChains*this->posteriorSamplesLength,this->numberFittedPar+3);
+            this->posteriorOut = MatrixXd::Zero(this->numberTempChains*this->posteriorSamplesLength,this->numberFittedPar + 3);
             
             this->currentLogPosterior = VectorXd::Zero(this->numberTempChains);
             this->currentSampleMean = MatrixXd::Zero(this->numberTempChains,this->numberFittedPar);
@@ -117,7 +116,7 @@ namespace ptmc{
             
             this->currentCovarianceMatrix = MatrixXd::Zero(this->numberFittedPar, this->numberFittedPar );
             this->nonadaptiveCovarianceMat = MatrixXd::Zero(this->numberFittedPar, this->numberFittedPar );
-            this->adaptiveCovarianceMat = MatrixXd::Zero(this->numberTempChains*this->numberFittedPar ,this->numberFittedPar );
+            this->adaptiveCovarianceMat = MatrixXd::Zero(this->numberTempChains * this->numberFittedPar ,this->numberFittedPar );
             this->temperatureLadder =  VectorXd::Zero(this->numberTempChains);
             this->temperatureLadderParameterised =  VectorXd::Zero(this->numberTempChains-1);
             
@@ -156,6 +155,92 @@ namespace ptmc{
             
             double alphaMVN = -sqrt(2)*ErfInv(0.234-1);
             this->stepSizeRobbinsMonro = (1.0-1.0/(double)this->numberFittedPar)*(pow(2*3.141, 0.5)*exp(alphaMVN*alphaMVN*0.5))/(2*alphaMVN) + 1.0/(this->numberFittedPar*0.234*(1-0.234));
+        }
+
+        void updateClass(List settings, List PTMCpar)
+        {
+            this->numberTempChains = settings["numberTempChains"];
+            this->numTempChainsNonAdaptive = this->numberTempChains/2;
+
+            this->numberFittedPar = settings["numberFittedPar"];
+            this->iterations = settings["iterations"];
+            this->thin = settings["thin"];
+            this->burninPosterior = settings["burninPosterior"];
+            this->burninAdaptiveCov = settings["burninAdaptiveCov"];
+            this->consoleUpdates = settings["consoleUpdates"];
+            this->onAdaptiveCov = settings["onAdaptiveCov"];
+            this->onAdaptiveTemp = settings["onAdaptiveTemp"];
+            this->updatesAdaptiveCov = settings["updatesAdaptiveCov"];
+            this->updatesAdaptiveTemp = settings["updatesAdaptiveTemp"];
+            this->onDebug = settings["onDebug"];
+            
+            this->lowerParBounds = settings["lowerParBounds"];
+            this->upperParBounds = settings["upperParBounds"];
+
+            // Counters 
+            this->counterFuncEval = PTMCpar["counterFuncEval"];
+            this->counterAccepted = PTMCpar["counterAccepted"];
+            this->counterPosterior = PTMCpar["counterPosterior"];
+            this->counterAdaptive = PTMCpar["counterAdaptive"];
+            this->counterNonAdaptive = PTMCpar["counterNonAdaptive"];
+            this->counterFuncEvalTemp = PTMCpar["counterFuncEvalTemp"];
+            this->counterAcceptTemp = PTMCpar["counterAcceptTemp"];
+            
+            this->posteriorSamplesLength = (int)PTMCpar["posteriorSamplesLength"] + (this->iterations-this->burninPosterior)/(this->thin);
+            
+            this->posteriorOut = MatrixXd::Zero(this->numberTempChains*this->posteriorSamplesLength,this->numberFittedPar+3);
+            MatrixXd posteriorOutPrev = PTMCpar["posteriorOut"];
+            for (int i = 0; i < (int)PTMCpar["posteriorSamplesLength"]; i++)
+                this->posteriorOut.row(i) = posteriorOutPrev.row(i);
+
+            this->currentLogPosterior = PTMCpar["currentLogPosterior"];
+            this->currentSampleMean = PTMCpar["currentSampleMean"];
+            this->currentSample = PTMCpar["currentSample"];
+            
+            this->proposalSample = PTMCpar["proposalSample"];
+            this->nonadaptiveScalar = PTMCpar["nonadaptiveScalar"];
+            this->adaptiveScalar = PTMCpar["adaptiveScalar"];
+            
+            this->currentCovarianceMatrix = PTMCpar["currentCovarianceMatrix"];
+            this->nonadaptiveCovarianceMat =PTMCpar["nonadaptiveCovarianceMat"];
+            this->adaptiveCovarianceMat = PTMCpar["adaptiveCovarianceMat"];
+            this->temperatureLadder =  PTMCpar["temperatureLadder"];
+            this->temperatureLadderParameterised = PTMCpar["temperatureLadderParameterised"];
+            
+            double alphaMVN = -sqrt(2)*ErfInv(0.234-1);
+            this->stepSizeRobbinsMonro = (1.0-1.0/(double)this->numberFittedPar)*(pow(2*3.141, 0.5)*exp(alphaMVN*alphaMVN*0.5))/(2*alphaMVN) + 1.0/(this->numberFittedPar*0.234*(1-0.234));
+        }
+        
+        List savePTMCpar() 
+        {
+            List PTMCpar = 
+                Rcpp::List::create(
+                    _["counterFuncEval"] = this->counterFuncEval,
+                    _["counterAccepted"] = this->counterAccepted,
+                    _["counterPosterior"] = this->counterPosterior,
+                    _["counterAdaptive"] = this->counterAdaptive,
+                    _["counterNonAdaptive"] = this->counterNonAdaptive,
+                    _["counterFuncEvalTemp"] = this->counterFuncEvalTemp,
+                    _["counterAcceptTemp"] = this->counterAcceptTemp,
+
+                    _["currentLogPosterior"] = this->currentLogPosterior,
+                    _["currentSampleMean"] = this->currentSampleMean,
+                    _["currentSample"] = this->currentSample,
+
+                    _["proposalSample"] = this->proposalSample,
+                    _["nonadaptiveScalar"] = this->nonadaptiveScalar,
+                    _["adaptiveScalar"] = this->adaptiveScalar,
+
+                    _["currentCovarianceMatrix"] = this->currentCovarianceMatrix,
+                    _["nonadaptiveCovarianceMat"] = this->nonadaptiveCovarianceMat,
+                    _["adaptiveCovarianceMat"] = this->adaptiveCovarianceMat,
+                    _["temperatureLadder"] = this->temperatureLadder,
+                    _["temperatureLadderParameterised"] = this->temperatureLadderParameterised,
+
+                    _["posteriorSamplesLength"] = this->posteriorSamplesLength,
+                    _["posteriorOut"] = this->posteriorOut
+            );
+            return PTMCpar;
         }
         
         MatrixXd runPTMCC()
