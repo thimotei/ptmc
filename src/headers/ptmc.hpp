@@ -104,7 +104,7 @@ namespace ptmc{
             this->counterAcceptTemp = VectorXd::Zero(this->numberTempChains);
             
             this->posteriorSamplesLength = (this->iterations-this->burninPosterior)/(this->thin);
-            this->posteriorOut = MatrixXd::Zero(this->numberTempChains*this->posteriorSamplesLength,this->numberFittedPar + 3);
+            this->posteriorOut = MatrixXd::Zero(this->posteriorSamplesLength, this->numberFittedPar + 3);
             
             this->currentLogPosterior = VectorXd::Zero(this->numberTempChains);
             this->currentSampleMean = MatrixXd::Zero(this->numberTempChains,this->numberFittedPar);
@@ -188,7 +188,7 @@ namespace ptmc{
             
             this->posteriorSamplesLength = (int)PTMCpar["posteriorSamplesLength"] + (this->iterations-this->burninPosterior)/(this->thin);
             
-            this->posteriorOut = MatrixXd::Zero(this->numberTempChains*this->posteriorSamplesLength,this->numberFittedPar+3);
+            this->posteriorOut = MatrixXd::Zero(this->posteriorSamplesLength,this->numberFittedPar+3);
             MatrixXd posteriorOutPrev = PTMCpar["posteriorOut"];
             for (int i = 0; i < (int)PTMCpar["posteriorSamplesLength"]; i++)
                 this->posteriorOut.row(i) = posteriorOutPrev.row(i);
@@ -326,15 +326,16 @@ namespace ptmc{
         
         void updateOutputPosterior()
         {
-            if ((this->workingIteration > (this->burninPosterior-1)) && (this->workingIteration%thin == 0) ) {
-                int m = this->workingChainNumber;
-                int l = this->posteriorSamplesLength;
+            if ((this->workingIteration > (this->burninPosterior-1)) && (this->workingIteration%thin == 0) &&
+                 this->workingChainNumber == 0) {
+              //  int m = this->workingChainNumber;
+              //  int l = this->posteriorSamplesLength;
                 for (int p = 0; p < this->numberFittedPar; p++)
-                    this->posteriorOut(m*l+this->counterPosterior[m], p) = this->currentSample(m,p);
+                    this->posteriorOut(this->counterPosterior[m], p) = this->currentSample(m,p);
                 
-                this->posteriorOut(m*l+this->counterPosterior[m], this->numberFittedPar) = this->currentLogPosterior(m);
-                this->posteriorOut(m*l+this->counterPosterior[m], this->numberFittedPar+1) = this->temperatureLadder[m];
-                this->posteriorOut(m*l+this->counterPosterior[m], this->numberFittedPar+2) = (double)this->counterAccepted[m]/(double)this->counterFuncEval[m];
+                this->posteriorOut(this->counterPosterior[m], this->numberFittedPar) = this->currentLogPosterior(m);
+                this->posteriorOut(this->counterPosterior[m], this->numberFittedPar+1) = this->temperatureLadder[m];
+                this->posteriorOut(this->counterPosterior[m], this->numberFittedPar+2) = (double)this->counterAccepted[m]/(double)this->counterFuncEval[m];
                 this->counterPosterior[m]++;
             }
         }
