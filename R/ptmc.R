@@ -7,7 +7,7 @@
 #'
 #' @export
 ptmc_func <- function(model, settings, par = NULL) {
-
+   cat("HELLO!!!!!!!!")
   if (length(par) == 0) {
     par <- rep(list(list(type = "None")), settings[["numberChainRuns"]])
     output <- get_outputB(model, settings, FALSE, par)

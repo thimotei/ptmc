@@ -4,17 +4,17 @@
 \alias{ptmc_func}
 \title{Create a model}
 \usage{
-ptmc_func(model, data, settings)
+ptmc_func(model, settings, par = NULL)
 }
 \arguments{
-\item{model}{The model to run ptmc for (build using \code{\link{build_model}}).}
-
-\item{data}{Data used in the calibration process}
+\item{model}{The model to run ptmc.}
 
 \item{settings}{settings}
+
+\item{data}{Data used in the calibration process}
 }
 \value{
-
+Returns a list with the fist element being the mcmc samples formatting for analysis and plottig with the CODA package. The second is the log posterior value at each time step.
 }
 \description{
 Create a model
