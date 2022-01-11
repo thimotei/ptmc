@@ -43,7 +43,7 @@ namespace ptmc{
         VectorXd counterFuncEval, counterAccepted, counterPosterior ,counterAdaptive;
         VectorXd counterNonAdaptive, counterFuncEvalTemp, counterAcceptTemp;
         
-        double proposedLogPosterior, alpha;
+        double proposedLogPosterior, alpha, initCovarVal;
 
         std::function<VectorXd()> samplePriorDistributions;
         std::function<double(VectorXd)> evaluateLogPrior;
@@ -94,6 +94,8 @@ namespace ptmc{
             this->lowerParBounds = settings["lowerParBounds"];
             this->upperParBounds = settings["upperParBounds"];
 
+            this->initCovarVal = settings["initCovarVal"];
+
             // Counters 
             this->counterFuncEval = VectorXd::Zero(this->numberTempChains);
             this->counterAccepted = VectorXd::Zero(this->numberTempChains);
@@ -125,7 +127,7 @@ namespace ptmc{
             MatrixXd initialCovarianceMatrix;
             
             for(int parNum = 0; parNum < this->numberFittedPar ; parNum++){
-                this->nonadaptiveCovarianceMat(parNum,parNum) = 1.0;
+                this->nonadaptiveCovarianceMat(parNum,parNum) = this->initCovarVal;
                 for (int chainNum = 0; chainNum < this->numberTempChains; chainNum++){
                     this->adaptiveCovarianceMat(chainNum*this->numberFittedPar+parNum,parNum) = 1.0;
                 }
