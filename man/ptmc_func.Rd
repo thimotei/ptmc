@@ -4,7 +4,7 @@
 \alias{ptmc_func}
 \title{Create a model}
 \usage{
-ptmc_func(model, settings, par = NULL)
+ptmc_func(model, data_list, settings, par = NULL)
 }
 \arguments{
 \item{model}{The model to run ptmc.}

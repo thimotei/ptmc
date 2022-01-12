@@ -30,9 +30,9 @@ void init_evaluateLogPrior(RPTMC* model, Rcpp::Function evaluateLogPrior) {
 }
 
 void init_evaluateLogLikelihood(RPTMC* model, Rcpp::Function evaluateLogLikelihood) {
-  auto func = [evaluateLogLikelihood](VectorXd params, MatrixXd covariance) {
+  auto func = [evaluateLogLikelihood](VectorXd params, MatrixXd covariance, List dataList) {
     PutRNGstate();
-    auto rData = evaluateLogLikelihood(params, covariance);
+    auto rData = evaluateLogLikelihood(params, covariance, dataList);
     GetRNGstate();
     return Rcpp::as<double>(rData);
   };
@@ -41,7 +41,7 @@ void init_evaluateLogLikelihood(RPTMC* model, Rcpp::Function evaluateLogLikeliho
 
 
 // [[Rcpp::export]]
-List run_ptmc(Rcpp::List model, Rcpp::List settings, bool update_ind, Rcpp::List PTMCpar)
+List run_ptmc(Rcpp::List model, Rcpp::List dataList, Rcpp::List settings, bool update_ind, Rcpp::List PTMCpar)
 {
   RPTMC PTMC; MatrixXd output;
   init_samplePriorDistributions(&PTMC, model["samplePriorDistributions"]);
@@ -49,9 +49,9 @@ List run_ptmc(Rcpp::List model, Rcpp::List settings, bool update_ind, Rcpp::List
   init_evaluateLogLikelihood(&PTMC, model["evaluateLogLikelihood"]);
 
   if (update_ind) {
-    PTMC.updateClass(settings, PTMCpar);
+    PTMC.updateClass(settings, dataList, PTMCpar);
   } else {  
-    PTMC.initialiseClass(settings);
+    PTMC.initialiseClass(settings, dataList);
   }
 
   output = PTMC.runPTMCC();

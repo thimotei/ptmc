@@ -20,6 +20,11 @@ using namespace Eigen;
 using namespace boost::math;
 // [[Rcpp::plugins("cpp14")]]
 
+
+#ifndef MIN
+#define MIN(a,b) ((a) < (b) ? (a) : (b)) // define MAX function for use later
+#endif
+
 namespace ptmc{
     
     struct PTMC
@@ -40,6 +45,7 @@ namespace ptmc{
         bool onDebug, onAdaptiveCov, onAdaptiveTemp;
         bool isSampleAccepted, isProposalAdaptive;
 
+        List dataList;
         VectorXd counterFuncEval, counterAccepted, counterPosterior ,counterAdaptive;
         VectorXd counterNonAdaptive, counterFuncEvalTemp, counterAcceptTemp;
         
@@ -47,16 +53,16 @@ namespace ptmc{
 
         std::function<VectorXd()> samplePriorDistributions;
         std::function<double(VectorXd)> evaluateLogPrior;
-        std::function<double(VectorXd, MatrixXd)> evaluateLogLikelihood;
+        std::function<double(VectorXd, MatrixXd, List)> evaluateLogLikelihood;
         double stepSizeRobbinsMonro;
         
-        double evalLogPosterior(const VectorXd& param, const MatrixXd& covariance)
+        double evalLogPosterior(const VectorXd& param, const MatrixXd& covariance, const List& dataList)
         {
             double logPrior = this->evaluateLogPrior(param);
             if (isinf(logPrior))
                 return log(0);
           
-            double logLikelihood = this->evaluateLogLikelihood(param, covariance);
+            double logLikelihood = this->evaluateLogLikelihood(param, covariance, dataList);
             return logPrior + logLikelihood;
         }
         
@@ -74,8 +80,9 @@ namespace ptmc{
             return(sgn*sqrtf(-tt1 + sqrtf(tt1*tt1 - tt2)));
         }
         
-        void initialiseClass(List settings)
+        void initialiseClass(List settings, List dataList)
         {
+            this->dataList = dataList;
             this->numberTempChains = settings["numberTempChains"];
             this->numTempChainsNonAdaptive = this->numberTempChains / 2;
 
@@ -127,9 +134,9 @@ namespace ptmc{
             MatrixXd initialCovarianceMatrix;
             
             for(int parNum = 0; parNum < this->numberFittedPar ; parNum++){
-                this->nonadaptiveCovarianceMat(parNum,parNum) = this->initCovarVal;
+                this->nonadaptiveCovarianceMat(parNum,parNum) = this->initCovarVal * (this->upperParBounds(parNum) - this->lowerParBounds(parNum));
                 for (int chainNum = 0; chainNum < this->numberTempChains; chainNum++){
-                    this->adaptiveCovarianceMat(chainNum*this->numberFittedPar+parNum,parNum) = 1.0;
+                    this->adaptiveCovarianceMat(chainNum*this->numberFittedPar+parNum,parNum) = this->initCovarVal * (this->upperParBounds(parNum) - this->lowerParBounds(parNum));
                 }
             }
             
@@ -144,10 +151,10 @@ namespace ptmc{
                 
                 initialSample = this->samplePriorDistributions();
                 this->currentCovarianceMatrix = this->nonadaptiveScalar(chainNum)*this->nonadaptiveCovarianceMat;
-                initialLogLikelihood = this->evalLogPosterior(initialSample, this->currentCovarianceMatrix);
+                initialLogLikelihood = this->evalLogPosterior(initialSample, this->currentCovarianceMatrix, this->dataList);
                 while(isinf(initialLogLikelihood) || isnan(initialLogLikelihood)){
                     initialSample = this->samplePriorDistributions();
-                    initialLogLikelihood = this->evalLogPosterior(initialSample, this->currentCovarianceMatrix);
+                    initialLogLikelihood = this->evalLogPosterior(initialSample, this->currentCovarianceMatrix, this->dataList);
                 }
                 
                 this->currentSample.row(chainNum) = initialSample;
@@ -159,10 +166,12 @@ namespace ptmc{
             this->stepSizeRobbinsMonro = (1.0-1.0/(double)this->numberFittedPar)*(pow(2*3.141, 0.5)*exp(alphaMVN*alphaMVN*0.5))/(2*alphaMVN) + 1.0/(this->numberFittedPar*0.234*(1-0.234));
         }
 
-        void updateClass(List settings, List PTMCpar)
+        void updateClass(List settings, List dataList, List PTMCpar)
         {
+            this->dataList = dataList;
+
             this->numberTempChains = settings["numberTempChains"];
-            this->numTempChainsNonAdaptive = this->numberTempChains/2;
+            this->numTempChainsNonAdaptive = this->numberTempChains / 2;
 
             this->numberFittedPar = settings["numberFittedPar"];
             this->iterations = settings["iterations"];
@@ -258,11 +267,16 @@ namespace ptmc{
         {
             for (int n = 0; n < numberTempChains; n++){
                 this->workingChainNumber = n;
+                if (onDebug) Rcpp::Rcout << "Pre: getAcceptanceRate" << std::endl;
                 getAcceptanceRate();
+                if (onDebug) Rcpp::Rcout << "Pre: updateSampleAndLogPosterior" << std::endl;
                 updateSampleAndLogPosterior();
+                if (onDebug) Rcpp::Rcout << "Pre: updateOutputPosterior" << std::endl;
                 updateOutputPosterior();
+                if (onDebug) Rcpp::Rcout << "Pre: updateProposal" << std::endl;
                 updateProposal();
             }
+            if (onDebug) Rcpp::Rcout << "Pre: swapTemperatureChains" << std::endl;
             swapTemperatureChains();
             consoleUpdatefunction();
         }
@@ -271,7 +285,7 @@ namespace ptmc{
         {
             this->isSampleAccepted = false;
             selectProposalDist();
-            this->proposedLogPosterior = this->evalLogPosterior(this->proposalSample, this->currentCovarianceMatrix);
+            this->proposedLogPosterior = this->evalLogPosterior(this->proposalSample, this->currentCovarianceMatrix, this->dataList);
             evaluateMetropolisRatio();
             this->counterFuncEval[this->workingChainNumber]++;
         }
@@ -288,11 +302,11 @@ namespace ptmc{
         void generateSampleFromNonAdaptiveProposalDist()
         {
             double s;
-            s = exp(this->nonadaptiveScalar[this->workingChainNumber])*0.1;
+            s = MIN(exp(this->nonadaptiveScalar[this->workingChainNumber])*0.1, 1);
             this->counterNonAdaptive[this->workingChainNumber]++; this->isProposalAdaptive = false;
             this->currentCovarianceMatrix = s*this->nonadaptiveCovarianceMat;
             Mvn Mvn_sampler(this->currentSample.row(this->workingChainNumber).transpose(), this->currentCovarianceMatrix);
-            this->proposalSample = Mvn_sampler.sampleTrunc(this->lowerParBounds, this->upperParBounds, 10);
+            this->proposalSample = Mvn_sampler.sampleTrunc(this->lowerParBounds, this->upperParBounds, 10, this->onDebug);
             
             errorCheckVectorValid(this->proposalSample);
         }
@@ -300,11 +314,11 @@ namespace ptmc{
         void generateSampleFromAdaptiveProposalDist()
         {
             double s;
-            s = exp(this->adaptiveScalar[this->workingChainNumber]);
+            s = MIN(exp(this->adaptiveScalar[this->workingChainNumber]), 1);
             this->counterAdaptive[this->workingChainNumber]++; this->isProposalAdaptive = true;
             this->currentCovarianceMatrix = s*this->adaptiveCovarianceMat.block(this->workingChainNumber*this->numberFittedPar, 0, this->numberFittedPar, this->numberFittedPar);
             Mvn Mvn_sampler(this->currentSample.row(this->workingChainNumber).transpose(), this->currentCovarianceMatrix);
-            this->proposalSample = Mvn_sampler.sampleTrunc(this->lowerParBounds, this->upperParBounds, 10);
+            this->proposalSample = Mvn_sampler.sampleTrunc(this->lowerParBounds, this->upperParBounds, 10, this->onDebug);
             
             errorCheckVectorValid(this->proposalSample);
         }
@@ -483,8 +497,12 @@ namespace ptmc{
         void consoleUpdatefunction()
         {
             int i = this->workingIteration;
-            if(i%this->consoleUpdates == 0 && !this->onDebug)
-                Rcout << "Running MCMC-PT iteration number: " << this->workingIteration << " of " <<  this->iterations << ". Current logpost: " << this->currentLogPosterior(0) << ". " << this->currentLogPosterior(1) << "           " << "\r";
+            if(i%this->consoleUpdates == 0) {
+                Rcpp::Rcout << "Running MCMC-PT iteration number: " << this->workingIteration << " of " <<  this->iterations << ". Current logpost: " << this->currentLogPosterior(0) << ". " << this->currentLogPosterior(1) << "           " << "\r";
+                if (this->onDebug) {
+                    Rcpp::Rcout << "\n Current values: " << this->currentSample.row(0) << std::endl;
+                }
+            }
         }
     };
 };

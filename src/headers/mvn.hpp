@@ -75,16 +75,20 @@ public:
         parOOS = false;
     }
     
-    Eigen::VectorXd sampleTrunc(Eigen::VectorXd lowerBound, Eigen::VectorXd upperBound, int nr_iterations)
+    Eigen::VectorXd sampleTrunc(Eigen::VectorXd lowerBound, Eigen::VectorXd upperBound, int nr_iterations, bool onDebug)
     {
         bool parOOS = FALSE;
+        int j = 0;
         Eigen::VectorXd sampleCheck;
         sampleCheck = sample(nr_iterations);
         checkTrunc(sampleCheck, lowerBound, upperBound, parOOS);
         
         while (parOOS){
+            j++;
             sampleCheck = sample(nr_iterations);
             checkTrunc(sampleCheck, lowerBound, upperBound, parOOS);
+            if (onDebug && (j == 1e6)) 
+                Rcpp::Rcout << "Struggling to sample points." << std::endl;
         }
         return sampleCheck;
     }

@@ -1,3 +1,14 @@
+#' @useDynLib ptmc
+#' @importFrom Rcpp sourceCpp
+#' @import coda
+#' @import parallel
+#' @import tidyr
+#' @import dplyr
+#' @import foreach
+#' @import doParallel
+#' @importFrom magrittr %>% %<>%
+NULL
+
 #' Create a model
 #'
 #' @param model The model to run ptmc.
@@ -6,39 +17,52 @@
 #' @return Returns a list with the fist element being the mcmc samples formatting for analysis and plottig with the CODA package. The second is the log posterior value at each time step.
 #'
 #' @export
-ptmc_func <- function(model, settings, par = NULL) {
-   cat("HELLO!!!!!!!!")
+ptmc_func <- function(model, data_list, settings, par = NULL) {
   if (length(par) == 0) {
     par <- rep(list(list(type = "None")), settings[["numberChainRuns"]])
-    output <- get_outputB(model, settings, FALSE, par)
+    output <- get_outputB(model, data_list, settings, FALSE, par)
   } else {
-    output <- get_outputB(model, settings, TRUE, par)
+    output <- get_outputB(model, data_list, settings, TRUE, par)
   }
   output
 }
 
-get_outputB <- function(model, settings, update_ind, par) {
+get_outputB <- function(model, data_list, settings, update_ind, par) {
+  nCores <- detectCores() - 1
+  cl <- makeCluster(nCores)
+  registerDoParallel(cl)
   outPTpost <- vector(mode = "list", length = settings[["numberChainRuns"]])
   outPTlp <- vector(mode = "list", length = settings[["numberChainRuns"]])
   outPTtemp <- vector(mode = "list", length = settings[["numberChainRuns"]])
   outPTacc <- vector(mode = "list", length = settings[["numberChainRuns"]])
   outPTpar <- vector(mode = "list", length = settings[["numberChainRuns"]])
 
-  for (i in 1:settings[["numberChainRuns"]]) {
-    out_raw <- run_ptmc(model, settings, update_ind, par[[i]])
-    out_post <- out_raw[["output"]][, 1:settings$numberFittedPar]
-    outPTpar[[i]] <- out_raw[["PTMCpar"]]
+  # Run the chains in parallel
+  out_raw <- list()
+  if(settings[["runParallel"]]) {
+    out_raw <- foreach(i = 1:settings[["numberChainRuns"]], .packages = c('ptmc','coda')) %dopar% {
+      run_ptmc(model, data_list, settings, update_ind, par[[i]])
+    }
+  } else {
+    for (i in 1:settings[["numberChainRuns"]]) {
+      out_raw[[i]] <- run_ptmc(model, data_list, settings, update_ind, par[[i]])
+    }
+  }
+
+  for(i in 1:settings[["numberChainRuns"]]) {
+    out_post <- out_raw[[i]][["output"]][, 1:settings$numberFittedPar]
+    outPTpar[[i]] <- out_raw[[i]][["PTMCpar"]]
     if (settings$numberFittedPar > 1){
         colnames(out_post) <- model[["namesOfParameters"]]
     }
     outPTpost[[i]] <- mcmc(out_post)
     
-    outPTlp[[i]] <- out_raw[["output"]][, settings$numberFittedPar + 1]
-    outPTtemp[[i]] <- out_raw[["output"]][, settings$numberFittedPar + 2]
-    outPTacc[[i]] <- out_raw[["output"]][, settings$numberFittedPar + 3]
+    outPTlp[[i]] <- out_raw[[i]][["output"]][, settings$numberFittedPar + 1]
+    outPTtemp[[i]] <- out_raw[[i]][["output"]][, settings$numberFittedPar + 2]
+    outPTacc[[i]] <- out_raw[[i]][["output"]][, settings$numberFittedPar + 3]
   }
 
-  outlpv <- data.frame(matrix(unlist(outPTlp), nrow=length(outPTlp[[1]])))
+  outlpv <- data.frame(matrix(unlist(outPTlp), nrow = length(outPTlp[[1]])))
   colnames(outlpv) <- c(1:settings[["numberChainRuns"]])
   outlpv <- outlpv %>% gather(colnames(outlpv), key="chain_no",value="lpost")
   outlpv$sample_no <-rep(1:length(outPTlp[[1]]), settings[["numberChainRuns"]])
