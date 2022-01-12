@@ -26,7 +26,6 @@ using namespace boost::math;
 #endif
 
 namespace ptmc{
-    
     struct PTMC
     {
         PTMC() {}
@@ -54,8 +53,8 @@ namespace ptmc{
         std::function<VectorXd()> samplePriorDistributions;
         std::function<double(VectorXd)> evaluateLogPrior;
         std::function<double(VectorXd, MatrixXd, List)> evaluateLogLikelihood;
+
         double stepSizeRobbinsMonro;
-        
         double evalLogPosterior(const VectorXd& param, const MatrixXd& covariance, const List& dataList)
         {
             double logPrior = this->evaluateLogPrior(param);

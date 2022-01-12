@@ -20,7 +20,6 @@ PRNG_s rng(engine()); //Generate non-static random numbers (pick different numbe
 // [[Rcpp::depends(RcppEigen)]]
 // [[Rcpp::plugins("cpp14")]]
 
-
 class Mvn
 {
 public:

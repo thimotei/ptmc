@@ -39,7 +39,7 @@ get_outputB <- function(model, data_list, settings, update_ind, par) {
 
   # Run the chains in parallel
   out_raw <- list()
-  if(settings[["runParallel"]]) {
+  if (settings[["runParallel"]]) {
     out_raw <- foreach(i = 1:settings[["numberChainRuns"]], .packages = c('ptmc','coda')) %dopar% {
       run_ptmc(model, data_list, settings, update_ind, par[[i]])
     }

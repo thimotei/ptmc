@@ -5,3 +5,7 @@ run_ptmc <- function(model, dataList, settings, update_ind, PTMCpar) {
     .Call('_ptmc_run_ptmc', PACKAGE = 'ptmc', model, dataList, settings, update_ind, PTMCpar)
 }
 
+run_ptmc_discrete <- function(model, dataList, settings, update_ind, PTMCpar) {
+    .Call('_ptmc_run_ptmc_discrete', PACKAGE = 'ptmc', model, dataList, settings, update_ind, PTMCpar)
+}
+

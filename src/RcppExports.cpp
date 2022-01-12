@@ -26,9 +26,25 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// run_ptmc_discrete
+List run_ptmc_discrete(Rcpp::List model, Rcpp::List dataList, Rcpp::List settings, bool update_ind, Rcpp::List PTMCpar);
+RcppExport SEXP _ptmc_run_ptmc_discrete(SEXP modelSEXP, SEXP dataListSEXP, SEXP settingsSEXP, SEXP update_indSEXP, SEXP PTMCparSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type model(modelSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type dataList(dataListSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type settings(settingsSEXP);
+    Rcpp::traits::input_parameter< bool >::type update_ind(update_indSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type PTMCpar(PTMCparSEXP);
+    rcpp_result_gen = Rcpp::wrap(run_ptmc_discrete(model, dataList, settings, update_ind, PTMCpar));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_ptmc_run_ptmc", (DL_FUNC) &_ptmc_run_ptmc, 5},
+    {"_ptmc_run_ptmc_discrete", (DL_FUNC) &_ptmc_run_ptmc_discrete, 5},
     {NULL, NULL, 0}
 };
 
