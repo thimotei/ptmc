@@ -14,6 +14,8 @@
 #define EIGEN_DONT_VECTORIZE
 #define EIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT
 
+#define PI 3.14159265358979323846
+
 using namespace Rcpp;
 using namespace std;
 using namespace Eigen;
